@@ -293,13 +293,20 @@ def create_config(task_id, model_path, model_name, model_type, expected_repo_nam
                                 print(f"Adjusted text_encoder_lr: {original_te_lr} → {config['text_encoder_lr']} (×{lr_multiplier})", flush=True)
                         
                         # TIER 1 ENHANCEMENT: Calculate dynamic warmup steps
+                        # Only set warmup for schedulers that support it
                         if "max_train_epochs" in config and "train_batch_size" in config:
-                            dynamic_warmup = calculate_dynamic_warmup_steps(
-                                config["max_train_epochs"],
-                                dataset_size,
-                                config["train_batch_size"]
-                            )
-                            config["lr_warmup_steps"] = dynamic_warmup
+                            lr_scheduler = config.get("lr_scheduler", "constant")
+                            # constant scheduler doesn't support warmup
+                            if lr_scheduler != "constant":
+                                dynamic_warmup = calculate_dynamic_warmup_steps(
+                                    config["max_train_epochs"],
+                                    dataset_size,
+                                    config["train_batch_size"]
+                                )
+                                config["lr_warmup_steps"] = dynamic_warmup
+                            else:
+                                # Ensure no warmup steps for constant scheduler
+                                config["lr_warmup_steps"] = 0
                         
                         # TIER 1 ENHANCEMENT: Calculate adaptive gradient accumulation
                         if "train_batch_size" in config:
